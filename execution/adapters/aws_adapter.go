@@ -3,7 +3,7 @@ package adapters
 import (
 	"context"
 
-	"github.com/UtopikCode/quickspaces-execution-contracts"
+	contracts "github.com/UtopikCode/quickspaces-execution-contracts"
 )
 
 type AWSExecutionAdapter struct{}

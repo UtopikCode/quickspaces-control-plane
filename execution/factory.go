@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/UtopikCode/quickspaces-control-plane/execution/adapters"
-	"github.com/UtopikCode/quickspaces-execution-contracts"
+	contracts "github.com/UtopikCode/quickspaces-execution-contracts"
 )
 
 func NewAdapter(provider string) (contracts.ExecutionAdapter, error) {

@@ -108,9 +108,9 @@ func (h *Handler) ReconcileWorkspace(w http.ResponseWriter, r *http.Request, id 
 }
 
 type createWorkspaceRequest struct {
-	Repo             string                `json:"repo"`
-	Owner            string                `json:"owner"`
-	Ref              string                `json:"ref"`
+	Repo             string                  `json:"repo"`
+	Owner            string                  `json:"owner"`
+	Ref              string                  `json:"ref"`
 	ExecutionProfile domain.ExecutionProfile `json:"executionProfile"`
 }
 
