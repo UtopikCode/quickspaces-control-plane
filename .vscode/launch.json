@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Quickspaces API",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/api",
+      "env": {
+        "LISTEN_ADDR": ":8080",
+        "DATABASE_URL": "postgres://postgres:postgres@postgres:5432/quickspaces?sslmode=disable",
+        "EXECUTION_PROVIDER": "truenas"
+      },
+      "buildFlags": "",
+      "args": [],
+      "showLog": true
+    }
+  ]
+}
