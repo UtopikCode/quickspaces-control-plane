@@ -89,9 +89,9 @@ func TestCreateWorkspace(t *testing.T) {
 	service := NewWorkspaceService(repo, execution.NewExecutionService(adapter))
 
 	workspace, err := service.CreateWorkspace(context.Background(), CreateWorkspaceRequest{
-		Repo:  "github.com/example/repo",
-		Owner: "owner",
-		Ref:   "main",
+		Repo:             "github.com/example/repo",
+		Owner:            "owner",
+		Ref:              "main",
 		ExecutionProfile: domain.ExecutionProfile([]byte(`{"provider":"truenas"}`)),
 	})
 	if err != nil {
@@ -108,9 +108,9 @@ func TestStartStopAndReconcile(t *testing.T) {
 	service := NewWorkspaceService(repo, execution.NewExecutionService(adapter))
 
 	workspace, err := service.CreateWorkspace(context.Background(), CreateWorkspaceRequest{
-		Repo:  "github.com/example/repo",
-		Owner: "owner",
-		Ref:   "main",
+		Repo:             "github.com/example/repo",
+		Owner:            "owner",
+		Ref:              "main",
 		ExecutionProfile: domain.ExecutionProfile([]byte(`{"provider":"truenas"}`)),
 	})
 	if err != nil {
@@ -165,9 +165,9 @@ func TestListWorkspaces(t *testing.T) {
 	service := NewWorkspaceService(repo, execution.NewExecutionService(adapter))
 
 	_, err := service.CreateWorkspace(context.Background(), CreateWorkspaceRequest{
-		Repo:  "github.com/example/repo",
-		Owner: "owner",
-		Ref:   "main",
+		Repo:             "github.com/example/repo",
+		Owner:            "owner",
+		Ref:              "main",
 		ExecutionProfile: domain.ExecutionProfile([]byte(`{"provider":"truenas"}`)),
 	})
 	if err != nil {

@@ -4,7 +4,7 @@ PKGS := ./...
 GO_FILES := $(shell find . -type f -name '*.go' -not -path './.git/*' -not -path './execution/contracts/*')
 GOLANGCI_LINT ?= $(shell command -v golangci-lint 2>/dev/null || true)
 
-.PHONY: all test go-vet lint check-format format ci
+.PHONY: all test go-vet lint check-format format generate ci
 
 all: ci
 
@@ -25,6 +25,10 @@ check-format:
 		echo "$$unformatted"; \
 		exit 1; \
 	fi
+
+# Generate code and static assets used by the build.
+generate:
+	go generate ./cmd/api
 
 # Format all Go files in place.
 format:

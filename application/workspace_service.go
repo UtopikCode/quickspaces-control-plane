@@ -29,9 +29,9 @@ func NewWorkspaceService(repo WorkspaceRepository, execSvc *execution.ExecutionS
 }
 
 type CreateWorkspaceRequest struct {
-	Repo             string                `json:"repo"`
-	Owner            string                `json:"owner"`
-	Ref              string                `json:"ref"`
+	Repo             string                  `json:"repo"`
+	Owner            string                  `json:"owner"`
+	Ref              string                  `json:"ref"`
 	ExecutionProfile domain.ExecutionProfile `json:"executionProfile"`
 }
 

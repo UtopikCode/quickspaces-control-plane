@@ -5,13 +5,17 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/UtopikCode/quickspaces-control-plane/api"
 	"github.com/UtopikCode/quickspaces-control-plane/application"
 	"github.com/UtopikCode/quickspaces-control-plane/config"
+	"github.com/UtopikCode/quickspaces-control-plane/docs"
 	"github.com/UtopikCode/quickspaces-control-plane/execution"
+	executionAdapters "github.com/UtopikCode/quickspaces-control-plane/execution/adapters"
 	"github.com/UtopikCode/quickspaces-control-plane/persistence/postgres"
+	contracts "github.com/UtopikCode/quickspaces-execution-contracts"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -26,7 +30,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -34,10 +40,17 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 
-	adapter, err := execution.NewAdapter(cfg.ExecutionProvider)
-	if err != nil {
-		log.Fatalf("execution adapter error: %v", err)
+	var adapter contracts.ExecutionAdapter
+	switch strings.ToLower(strings.TrimSpace(cfg.ExecutionProvider)) {
+	case "aws":
+		adapter = executionAdapters.NewAWSExecutionAdapter()
+	case "truenas":
+		adapter = executionAdapters.NewLocalExecutionAdapter()
+	default:
+		log.Fatalf("unsupported execution provider: %s", cfg.ExecutionProvider)
 	}
+
+	docs.SwaggerInfo.BasePath = "/api/v1"
 
 	execSvc := execution.NewExecutionService(adapter)
 	repo := postgres.NewWorkspaceRepository(db)

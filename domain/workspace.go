@@ -1,13 +1,12 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
-
-	"github.com/UtopikCode/quickspaces-execution-contracts"
 )
 
-type ExecutionProfile = contracts.ExecutionProfile
+type ExecutionProfile = json.RawMessage
 
 type Workspace struct {
 	ID               string           `json:"id"`

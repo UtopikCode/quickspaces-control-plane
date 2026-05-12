@@ -1,0 +1,231 @@
+basePath: /api/v1
+definitions:
+  api.createWorkspaceRequest:
+    properties:
+      executionProfile:
+        items:
+          type: integer
+        type: array
+      owner:
+        type: string
+      ref:
+        type: string
+      repo:
+        type: string
+    type: object
+  api.errorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  domain.Workspace:
+    properties:
+      actualState:
+        type: string
+      createdAt:
+        type: string
+      desiredState:
+        type: string
+      executionProfile:
+        items:
+          type: integer
+        type: array
+      id:
+        type: string
+      owner:
+        type: string
+      ref:
+        type: string
+      repo:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: http://example.com/support
+  description: Stateless Control Plane API for QuickSpaces.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://example.com/terms/
+  title: QuickSpaces Control Plane API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Returns whether the control plane API is healthy.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - Health
+  /workspaces:
+    get:
+      description: Returns all configured workspaces.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.Workspace'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: List workspaces
+      tags:
+      - Workspaces
+    post:
+      consumes:
+      - application/json
+      description: Creates a workspace with a desired state and execution profile.
+      parameters:
+      - description: Create workspace request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.createWorkspaceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Workspace'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: Create a new workspace
+      tags:
+      - Workspaces
+  /workspaces/{id}:
+    get:
+      description: Returns the workspace identified by its ID.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Workspace'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: Get a workspace
+      tags:
+      - Workspaces
+  /workspaces/{id}/reconcile:
+    post:
+      description: Reconciles the configured workspace state with the execution environment.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Workspace'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: Reconcile a workspace
+      tags:
+      - Workspaces
+  /workspaces/{id}/start:
+    post:
+      description: Transitions the workspace to the running state.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Workspace'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: Start a workspace
+      tags:
+      - Workspaces
+  /workspaces/{id}/stop:
+    post:
+      description: Transitions the workspace to the stopped state.
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Workspace'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: Stop a workspace
+      tags:
+      - Workspaces
+schemes:
+- http
+swagger: "2.0"

@@ -7,8 +7,8 @@ import (
 )
 
 type Config struct {
-	ListenAddress   string
-	DatabaseURL     string
+	ListenAddress     string
+	DatabaseURL       string
 	ExecutionProvider string
 }
 
@@ -25,12 +25,12 @@ func Load() (*Config, error) {
 
 	executionProvider := os.Getenv("EXECUTION_PROVIDER")
 	if executionProvider == "" {
-		executionProvider = "truenas"
+		return nil, errors.New("EXECUTION_PROVIDER is required")
 	}
 
 	return &Config{
-		ListenAddress:   listenAddress,
-		DatabaseURL:     databaseURL,
+		ListenAddress:     listenAddress,
+		DatabaseURL:       databaseURL,
 		ExecutionProvider: executionProvider,
 	}, nil
 }

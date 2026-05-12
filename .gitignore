@@ -12,3 +12,4 @@ vendor/
 # Editor
 .idea/
 .DS_Store
+cmd/api/__debug_bin*

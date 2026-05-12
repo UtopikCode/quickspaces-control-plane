@@ -8,7 +8,7 @@
     "golang.go",
     "ms-azuretools.vscode-docker"
   ],
-  "postCreateCommand": "go mod tidy",
+  "postCreateCommand": "go mod tidy && go install github.com/swaggo/swag/cmd/swag@latest",
   "runServices": ["postgres"],
   "shutdownAction": "stopCompose",
   "forwardPorts": [5432]

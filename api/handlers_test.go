@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/UtopikCode/quickspaces-control-plane/application"
 	"github.com/UtopikCode/quickspaces-control-plane/domain"
 	"github.com/UtopikCode/quickspaces-control-plane/execution"
-	"github.com/UtopikCode/quickspaces-execution-contracts"
+	contracts "github.com/UtopikCode/quickspaces-execution-contracts"
 )
 
 type testRepo struct {
@@ -104,9 +105,9 @@ func TestCreateAndStartWorkspace(t *testing.T) {
 	router := NewRouter(h)
 
 	payload := map[string]interface{}{
-		"repo": "github.com/example/repo",
-		"owner": "team-a",
-		"ref": "main",
+		"repo":             "github.com/example/repo",
+		"owner":            "team-a",
+		"ref":              "main",
 		"executionProfile": map[string]string{"provider": "truenas"},
 	}
 	body, _ := json.Marshal(payload)
@@ -139,5 +140,48 @@ func TestCreateAndStartWorkspace(t *testing.T) {
 	}
 	if started.DesiredState != "running" {
 		t.Fatalf("expected running desired state, got %s", started.DesiredState)
+	}
+}
+func TestSwaggerUIEndpoint(t *testing.T) {
+	repo := newTestRepo()
+	service := application.NewWorkspaceService(repo, execution.NewExecutionService(&testAdapter{}))
+	h := NewHandler(service)
+	router := NewRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.Code)
+	}
+	if ct := res.Header().Get("Content-Type"); !strings.Contains(ct, "text/html") {
+		t.Fatalf("expected HTML response, got %s", ct)
+	}
+}
+
+func TestSwaggerDocJSONEndpoint(t *testing.T) {
+	repo := newTestRepo()
+	service := application.NewWorkspaceService(repo, execution.NewExecutionService(&testAdapter{}))
+	h := NewHandler(service)
+	router := NewRouter(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/swagger/doc.json", nil)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.Code)
+	}
+	if ct := res.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Fatalf("expected JSON response, got %s", ct)
+	}
+
+	var spec map[string]any
+	if err := json.NewDecoder(res.Body).Decode(&spec); err != nil {
+		t.Fatalf("failed to decode Swagger JSON: %v", err)
+	}
+	if specVersion, ok := spec["swagger"].(string); !ok || specVersion != "2.0" {
+		t.Fatalf("expected swagger version 2.0, got %v", spec["swagger"])
 	}
 }

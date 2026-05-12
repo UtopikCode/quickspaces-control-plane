@@ -37,13 +37,20 @@ By default the server listens on `:8080` unless `LISTEN_ADDR` is provided.
 
 ## Development commands
 
-Use the Makefile to run tests, linting, and formatting:
+Use the Makefile to run tests, linting, generation, and formatting:
 
 ```bash
 make test
 make lint
+make generate
 make format
 make ci
+```
+
+Run generator directly with:
+
+```bash
+go generate ./cmd/api
 ```
 
 `make ci` will verify formatting, run static analysis, and execute the full test suite.
@@ -125,6 +132,21 @@ POST /api/v1/workspaces/{id}/reconcile
 
 ```http
 GET /api/v1/health
+```
+
+## API Documentation
+
+Swagger UI is available after the server starts:
+
+- `http://localhost:8080/swagger/index.html`
+
+The documentation is generated from code annotations and committed under `docs/`.
+
+To regenerate docs after API changes:
+
+```bash
+go install github.com/swaggo/swag/cmd/swag@latest
+make generate
 ```
 
 ## Notes

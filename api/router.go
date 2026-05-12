@@ -3,6 +3,9 @@ package api
 import (
 	"net/http"
 	"strings"
+
+	_ "github.com/UtopikCode/quickspaces-control-plane/docs"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type Router struct {
@@ -15,6 +18,16 @@ func NewRouter(handler *Handler) http.Handler {
 	mux.HandleFunc("/api/v1/health", router.handleHealth)
 	mux.HandleFunc("/api/v1/workspaces", router.handleWorkspaces)
 	mux.HandleFunc("/api/v1/workspaces/", router.handleWorkspaceActions)
+	mux.HandleFunc("/swagger", func(w http.ResponseWriter, r *http.Request) {
+		http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently).ServeHTTP(w, r)
+	})
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
+	mux.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
+		http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently).ServeHTTP(w, r)
+	})
+	mux.HandleFunc("/docs/", func(w http.ResponseWriter, r *http.Request) {
+		http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently).ServeHTTP(w, r)
+	})
 	return mux
 }
 
