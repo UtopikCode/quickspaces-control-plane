@@ -1,0 +1,11 @@
+[
+  {
+    "createIndexes": "workspaces",
+    "indexes": [
+      {
+        "key": {"created_at": -1},
+        "name": "created_at_desc"
+      }
+    ]
+  }
+]

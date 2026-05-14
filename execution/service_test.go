@@ -30,8 +30,10 @@ func (a *testAdapter) GetWorkspaceStatus(ctx context.Context, id string) (contra
 func TestExecutionServiceResolvesProviderFromExecutionProfile(t *testing.T) {
 	adapter := &testAdapter{}
 	registry := NewAdapterRegistry()
-	registry.Register("test", adapter)
-	service := NewExecutionService(registry)
+	registry.Register("test", func(_ json.RawMessage) (contracts.ExecutionAdapter, error) {
+		return adapter, nil
+	})
+	service := NewExecutionService(registry, nil)
 
 	workspace := &domain.Workspace{
 		ID:               "ws-1",
@@ -53,8 +55,10 @@ func TestExecutionServiceResolvesProviderFromExecutionProfile(t *testing.T) {
 func TestExecutionServiceResolvesProviderCaseInsensitively(t *testing.T) {
 	adapter := &testAdapter{}
 	registry := NewAdapterRegistry()
-	registry.Register("test", adapter)
-	service := NewExecutionService(registry)
+	registry.Register("test", func(_ json.RawMessage) (contracts.ExecutionAdapter, error) {
+		return adapter, nil
+	})
+	service := NewExecutionService(registry, nil)
 
 	workspace := &domain.Workspace{
 		ExecutionProfile: json.RawMessage(`{"provider":"TeSt"}`),
@@ -69,7 +73,7 @@ func TestExecutionServiceResolvesProviderCaseInsensitively(t *testing.T) {
 }
 
 func TestExecutionServiceFailsWhenProviderUnsupported(t *testing.T) {
-	service := NewExecutionService(NewAdapterRegistry())
+	service := NewExecutionService(NewAdapterRegistry(), nil)
 	workspace := &domain.Workspace{ExecutionProfile: json.RawMessage(`{"provider":"truenas"}`)}
 
 	err := service.StartWorkspace(context.Background(), workspace)
@@ -79,7 +83,7 @@ func TestExecutionServiceFailsWhenProviderUnsupported(t *testing.T) {
 }
 
 func TestExecutionServiceFailsWhenExecutionProfileMissing(t *testing.T) {
-	service := NewExecutionService(NewAdapterRegistry())
+	service := NewExecutionService(NewAdapterRegistry(), nil)
 	workspace := &domain.Workspace{ExecutionProfile: nil}
 
 	err := service.StartWorkspace(context.Background(), workspace)

@@ -1,0 +1,6 @@
+[
+  {
+    "dropIndexes": "workspaces",
+    "index": "created_at_desc"
+  }
+]

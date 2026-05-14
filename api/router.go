@@ -20,6 +20,8 @@ func NewRouter(handler *Handler) http.Handler {
 	mux.HandleFunc("/api/v1/auth/token", router.handleTokenExchange)
 	mux.HandleFunc("/api/v1/workspaces", router.handleWorkspaces)
 	mux.HandleFunc("/api/v1/workspaces/", router.handleWorkspaceActions)
+	mux.HandleFunc("/api/v1/hosts", router.handleHosts)
+	mux.HandleFunc("/api/v1/hosts/", router.handleHostActions)
 	mux.HandleFunc("/api/v1/access", router.handleAccess)
 	mux.HandleFunc("/api/v1/access/", router.handleAccess)
 	return mux
@@ -77,6 +79,33 @@ func (r *Router) handleWorkspaceActions(w http.ResponseWriter, req *http.Request
 	default:
 		http.NotFound(w, req)
 	}
+}
+
+func (r *Router) handleHosts(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case http.MethodPost:
+		r.handler.CreateHost(w, req)
+	case http.MethodGet:
+		r.handler.ListHosts(w, req)
+	default:
+		http.NotFound(w, req)
+	}
+}
+
+func (r *Router) handleHostActions(w http.ResponseWriter, req *http.Request) {
+	path := strings.TrimPrefix(req.URL.Path, "/api/v1/hosts/")
+	id := strings.Trim(path, "/")
+	if id == "" {
+		http.NotFound(w, req)
+		return
+	}
+
+	if req.Method != http.MethodGet {
+		http.NotFound(w, req)
+		return
+	}
+
+	r.handler.GetHost(w, req, id)
 }
 
 func (r *Router) handleAccess(w http.ResponseWriter, req *http.Request) {

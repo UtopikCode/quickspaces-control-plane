@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"testing"
@@ -61,6 +62,35 @@ func (r *mockRepo) UpdateActualState(ctx context.Context, id, actualState string
 	return nil
 }
 
+type mockHostRepo struct {
+	hosts map[string]*domain.ExecutionHost
+}
+
+func newMockHostRepo() *mockHostRepo {
+	return &mockHostRepo{hosts: make(map[string]*domain.ExecutionHost)}
+}
+
+func (r *mockHostRepo) GetByID(ctx context.Context, id string) (*domain.ExecutionHost, error) {
+	host, ok := r.hosts[id]
+	if !ok {
+		return nil, domain.ErrHostNotFound
+	}
+	return host, nil
+}
+
+func (r *mockHostRepo) Create(ctx context.Context, host *domain.ExecutionHost) error {
+	r.hosts[host.ID] = host
+	return nil
+}
+
+func (r *mockHostRepo) List(ctx context.Context) ([]*domain.ExecutionHost, error) {
+	result := make([]*domain.ExecutionHost, 0, len(r.hosts))
+	for _, host := range r.hosts {
+		result = append(result, host)
+	}
+	return result, nil
+}
+
 type mockAdapter struct {
 	started bool
 	stopped bool
@@ -82,16 +112,21 @@ func (m *mockAdapter) GetWorkspaceStatus(ctx context.Context, id string) (contra
 
 func TestCreateWorkspace(t *testing.T) {
 	repo := newMockRepo()
+	hostRepo := newMockHostRepo()
+	hostRepo.hosts["host-1"] = &domain.ExecutionHost{ID: "host-1", Name: "trueNAS host", Adapter: "truenas", Config: json.RawMessage(`{}`), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	adapter := &mockAdapter{}
 	registry := execution.NewAdapterRegistry()
-	registry.Register("truenas", adapter)
-	service := NewWorkspaceService(repo, execution.NewExecutionService(registry))
+	registry.Register("truenas", func(_ json.RawMessage) (contracts.ExecutionAdapter, error) {
+		return adapter, nil
+	})
+	service := NewWorkspaceService(repo, hostRepo, execution.NewExecutionService(registry, hostRepo))
 
 	workspace, err := service.CreateWorkspace(context.Background(), CreateWorkspaceRequest{
 		Repo:             "github.com/example/repo",
 		Owner:            "owner",
 		Ref:              "main",
-		ExecutionProfile: domain.ExecutionProfile([]byte(`{"provider":"truenas"}`)),
+		HostID:           "host-1",
+		ExecutionProfile: domain.ExecutionProfile([]byte(`{"runtimeConfig":{"image":"ubuntu:24.04"}}`)),
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -103,16 +138,21 @@ func TestCreateWorkspace(t *testing.T) {
 
 func TestStartStopAndReconcile(t *testing.T) {
 	repo := newMockRepo()
+	hostRepo := newMockHostRepo()
+	hostRepo.hosts["host-1"] = &domain.ExecutionHost{ID: "host-1", Name: "trueNAS host", Adapter: "truenas", Config: json.RawMessage(`{}`), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	adapter := &mockAdapter{}
 	registry := execution.NewAdapterRegistry()
-	registry.Register("truenas", adapter)
-	service := NewWorkspaceService(repo, execution.NewExecutionService(registry))
+	registry.Register("truenas", func(_ json.RawMessage) (contracts.ExecutionAdapter, error) {
+		return adapter, nil
+	})
+	service := NewWorkspaceService(repo, hostRepo, execution.NewExecutionService(registry, hostRepo))
 
 	workspace, err := service.CreateWorkspace(context.Background(), CreateWorkspaceRequest{
 		Repo:             "github.com/example/repo",
 		Owner:            "owner",
 		Ref:              "main",
-		ExecutionProfile: domain.ExecutionProfile([]byte(`{"provider":"truenas"}`)),
+		HostID:           "host-1",
+		ExecutionProfile: domain.ExecutionProfile([]byte(`{"runtimeConfig":{"image":"ubuntu:24.04"}}`)),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -151,10 +191,13 @@ func TestStartStopAndReconcile(t *testing.T) {
 
 func TestGetWorkspaceNotFound(t *testing.T) {
 	repo := newMockRepo()
+	hostRepo := newMockHostRepo()
 	adapter := &mockAdapter{}
 	registry := execution.NewAdapterRegistry()
-	registry.Register("truenas", adapter)
-	service := NewWorkspaceService(repo, execution.NewExecutionService(registry))
+	registry.Register("truenas", func(_ json.RawMessage) (contracts.ExecutionAdapter, error) {
+		return adapter, nil
+	})
+	service := NewWorkspaceService(repo, hostRepo, execution.NewExecutionService(registry, hostRepo))
 
 	_, err := service.GetWorkspace(context.Background(), "missing")
 	if !errors.Is(err, domain.ErrWorkspaceNotFound) {
@@ -164,16 +207,21 @@ func TestGetWorkspaceNotFound(t *testing.T) {
 
 func TestListWorkspaces(t *testing.T) {
 	repo := newMockRepo()
+	hostRepo := newMockHostRepo()
+	hostRepo.hosts["host-1"] = &domain.ExecutionHost{ID: "host-1", Name: "trueNAS host", Adapter: "truenas", Config: json.RawMessage(`{}`), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	adapter := &mockAdapter{}
 	registry := execution.NewAdapterRegistry()
-	registry.Register("truenas", adapter)
-	service := NewWorkspaceService(repo, execution.NewExecutionService(registry))
+	registry.Register("truenas", func(_ json.RawMessage) (contracts.ExecutionAdapter, error) {
+		return adapter, nil
+	})
+	service := NewWorkspaceService(repo, hostRepo, execution.NewExecutionService(registry, hostRepo))
 
 	_, err := service.CreateWorkspace(context.Background(), CreateWorkspaceRequest{
 		Repo:             "github.com/example/repo",
 		Owner:            "owner",
 		Ref:              "main",
-		ExecutionProfile: domain.ExecutionProfile([]byte(`{"provider":"truenas"}`)),
+		HostID:           "host-1",
+		ExecutionProfile: domain.ExecutionProfile([]byte(`{"runtimeConfig":{"image":"ubuntu:24.04"}}`)),
 	})
 	if err != nil {
 		t.Fatal(err)

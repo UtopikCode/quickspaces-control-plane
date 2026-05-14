@@ -1,0 +1,6 @@
+[
+  {
+    "dropIndexes": "access_rules",
+    "index": "subject_type_subject_id_unique"
+  }
+]

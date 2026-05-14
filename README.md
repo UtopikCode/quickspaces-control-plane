@@ -10,7 +10,7 @@ This repository implements a clean control plane for QuickSpaces:
 - remains fully stateless
 - does not contain AWS, Docker, or Kubernetes logic
 - delegates execution to `ExecutionAdapter`
-- persists desired and actual workspace state in PostgreSQL
+- persists desired and actual workspace state in MongoDB
 
 ## Architecture
 
@@ -18,7 +18,7 @@ This repository implements a clean control plane for QuickSpaces:
 - `api` — HTTP handlers and router
 - `application` — use cases and business services
 - `domain` — workspace model and domain errors
-- `persistence` — PostgreSQL repository
+- `persistence` — MongoDB repository
 - `execution` — execution adapter wiring
 - `config` — environment-driven configuration
 - `docs` — architecture documentation
@@ -33,9 +33,10 @@ All routes are explicitly versioned under `/api/v1`.
 
 ## Running locally
 
-1. Configure PostgreSQL and export `DATABASE_URL`.
-2. Optionally set `EXECUTION_PROVIDER` to `aws` or `truenas`.
-3. Run the server:
+1. Configure MongoDB and export `DATABASE_URL`.
+2. Optionally set `DATABASE_NAME` if you want a database other than `quickspaces`.
+3. Optionally set `EXECUTION_PROVIDER` to `aws` or `truenas`.
+4. Run the server:
 
 ```bash
 go run ./cmd/api
@@ -54,10 +55,8 @@ make vet
 make format
 make check-format
 make generate-swagger
-make generate-ent
-make migrate-ent
-make generate-ent-ddl
 make init-db
+make migrate
 make ci
 ```
 
@@ -71,7 +70,8 @@ go generate ./cmd/api
 
 ## Environment variables
 
-- `DATABASE_URL` — Postgres DSN, required
+- `DATABASE_URL` — MongoDB URI, required
+- `DATABASE_NAME` — MongoDB database name, defaults to `quickspaces`
 - `EXECUTION_PROVIDER` — execution adapter provider (`aws` or `truenas`), defaults to `truenas`
 - `LISTEN_ADDR` — HTTP listen address, defaults to `:8080`
 - `GITHUB_CLIENT_ID` — GitHub OAuth App client ID, required
@@ -94,41 +94,21 @@ This control plane is stateless. GitHub is the source of truth for identity, and
 
 ## Database schema
 
-Initialize the database schema with:
+Initialize the database schema and indexes with:
 
 ```bash
-DATABASE_URL=postgres://user:pass@host:5432/dbname?sslmode=disable make init-db
+DATABASE_URL=mongodb://user:pass@host:27017/quickspaces make init-db
 ```
 
-Or create the tables manually from `db/schema.sql`.
+Migration files are stored in `migrations/`, and `make init-db` applies them with `golang-migrate`.
 
-Create the `workspaces` table before running the API, for example:
+The API stores documents in the following MongoDB collections:
 
-```sql
-CREATE TABLE IF NOT EXISTS workspaces (
-    id TEXT PRIMARY KEY,
-    repo TEXT NOT NULL,
-    owner TEXT NOT NULL,
-    ref TEXT NOT NULL,
-    desired_state TEXT NOT NULL,
-    actual_state TEXT NOT NULL,
-    execution_profile JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
-);
-```
+- `workspaces`
+- `execution_hosts`
+- `access_rules`
 
-Create the `access_rules` table to drive authorization:
-
-```sql
-CREATE TABLE IF NOT EXISTS access_rules (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    "type" TEXT NOT NULL,
-    value TEXT NOT NULL,
-    role TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
-);
-```
+The initialization step creates the required indexes for `access_rules` and `workspaces`.
 
 Supported rule types:
 

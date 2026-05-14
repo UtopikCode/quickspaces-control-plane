@@ -13,6 +13,7 @@ type Workspace struct {
 	Repo             string           `json:"repo"`
 	Owner            string           `json:"owner"`
 	Ref              string           `json:"ref"`
+	HostID           string           `json:"hostId"`
 	DesiredState     string           `json:"desiredState"`
 	ActualState      string           `json:"actualState"`
 	ExecutionProfile ExecutionProfile `json:"executionProfile"`

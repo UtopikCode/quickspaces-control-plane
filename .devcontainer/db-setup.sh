@@ -11,35 +11,26 @@ if [ -f .env ]; then
 fi
 
 if [ -z "${DATABASE_URL:-}" ]; then
-  echo "DATABASE_URL is not set; skipping database initialization and migration."
+  echo "DATABASE_URL is not set; skipping database initialization."
   exit 0
 fi
 
-PGHOST="${POSTGRES_HOST:-postgres}"
-PGPORT="${POSTGRES_PORT:-5432}"
-PGUSER="${POSTGRES_USER:-postgres}"
-PGDATABASE="${POSTGRES_DB:-quickspaces}"
+MONGO_HOST="${MONGO_HOST:-mongo}"
+MONGO_PORT="${MONGO_PORT:-27017}"
 
-export PGPASSWORD="${POSTGRES_PASSWORD:-}"
-
-echo "Waiting for PostgreSQL at ${PGHOST}:${PGPORT}..."
+echo "Waiting for MongoDB at ${MONGO_HOST}:${MONGO_PORT}..."
 for i in $(seq 1 30); do
-  if pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" >/dev/null 2>&1; then
-    echo "PostgreSQL is ready"
+  if bash -c "cat < /dev/null > /dev/tcp/${MONGO_HOST}/${MONGO_PORT}" >/dev/null 2>&1; then
+    echo "MongoDB is ready"
     break
   fi
-  echo "Waiting for Postgres... ($i/30)"
+  echo "Waiting for MongoDB... ($i/30)"
   sleep 2
   if [ "$i" -eq 30 ]; then
-    echo "ERROR: Postgres did not become ready in time" >&2
+    echo "ERROR: MongoDB did not become ready in time" >&2
     exit 1
   fi
-done
+ done
 
-echo "Initializing DB schema if required..."
-if ! make init-db; then
-  echo "init-db failed or was not needed; continuing with migrate-ent"
-fi
-
-echo "Applying Ent migrations"
-make migrate-ent
+echo "Initializing MongoDB schema and indexes"
+make init-db

@@ -9,18 +9,13 @@
       "extensions": [
         "golang.go",
         "ms-azuretools.vscode-docker",
-        "ms-ossdata.vscode-pgsql"
+        "mongodb.mongodb-vscode"
       ],
       "settings": {
-        "pgsql.connections": [
+        "mongodb.connections": [
           {
-            "profileName": "QuickSpaces Dev Postgres",
-            "server": "postgres",
-            "database": "quickspaces",
-            "user": "postgres",
-            "password": "postgres",
-            "port": "5432",
-            "sslmode": "disable"
+            "name": "QuickSpaces Dev Mongo",
+            "connectionString": "mongodb://mongo:27017/quickspaces"
           }
         ]
       }
@@ -28,7 +23,7 @@
   },
   "postCreateCommand": "go mod tidy",
   "postStartCommand": "bash .devcontainer/db-setup.sh",
-  "runServices": ["postgres"],
+  "runServices": ["mongo"],
   "shutdownAction": "stopCompose",
-  "forwardPorts": [5432]
+  "forwardPorts": [27017]
 }

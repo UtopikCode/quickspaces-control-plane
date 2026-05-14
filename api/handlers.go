@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/UtopikCode/quickspaces-control-plane/application"
 	"github.com/UtopikCode/quickspaces-control-plane/domain"
@@ -38,12 +39,13 @@ type AccessRuleResponse struct {
 
 type Handler struct {
 	service      *application.WorkspaceService
+	hostService  *application.HostService
 	authService  *auth.Service
 	githubClient githubclient.GitHubClient
 }
 
-func NewHandler(service *application.WorkspaceService, authService *auth.Service, githubClient githubclient.GitHubClient) *Handler {
-	return &Handler{service: service, authService: authService, githubClient: githubClient}
+func NewHandler(service *application.WorkspaceService, hostService *application.HostService, authService *auth.Service, githubClient githubclient.GitHubClient) *Handler {
+	return &Handler{service: service, hostService: hostService, authService: authService, githubClient: githubClient}
 }
 
 // Health godoc
@@ -79,8 +81,8 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
-	if req.Repo == "" || req.Owner == "" || req.Ref == "" {
-		writeError(w, http.StatusBadRequest, "repo, owner, and ref are required")
+	if req.Repo == "" || req.Owner == "" || req.Ref == "" || req.HostID == "" {
+		writeError(w, http.StatusBadRequest, "repo, owner, ref, and hostId are required")
 		return
 	}
 
@@ -94,6 +96,7 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		Repo:             req.Repo,
 		Owner:            req.Owner,
 		Ref:              req.Ref,
+		HostID:           req.HostID,
 		ExecutionProfile: domain.ExecutionProfile(executionProfileBytes),
 	})
 	if err != nil {
@@ -102,6 +105,147 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, workspace)
+}
+
+// CreateHost godoc
+// @Summary Register a new execution host
+// @Description Registers an execution host with adapter-specific config that can be bound to workspaces.
+// @Tags Hosts
+// @Accept json
+// @Produce json
+// @Param request body CreateHostRequestPayload true "Create host request"
+// @Success 201 {object} ExecutionHostResponse
+// @Failure 400 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Security ApiKeyAuth
+// @Router /hosts [post]
+func (h *Handler) CreateHost(w http.ResponseWriter, r *http.Request) {
+	if err := h.authorizeRequest(r, "admin"); err != nil {
+		writeError(w, getStatusCode(err), err.Error())
+		return
+	}
+
+	var req CreateHostRequestPayload
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON payload")
+		return
+	}
+	if req.Name == "" || req.Adapter == "" {
+		writeError(w, http.StatusBadRequest, "name and adapter are required")
+		return
+	}
+
+	configBytes, err := json.Marshal(req.Config)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid host config payload")
+		return
+	}
+
+	host, err := h.hostService.CreateHost(r.Context(), application.CreateHostRequest{
+		Name:    req.Name,
+		Adapter: req.Adapter,
+		Config:  domain.ExecutionProfile(configBytes),
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var hostConfig map[string]interface{}
+	if err := json.Unmarshal(host.Config, &hostConfig); err != nil {
+		hostConfig = map[string]interface{}{}
+	}
+
+	writeJSON(w, http.StatusCreated, ExecutionHostResponse{
+		ID:        host.ID,
+		Name:      host.Name,
+		Adapter:   host.Adapter,
+		Config:    hostConfig,
+		CreatedAt: host.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: host.UpdatedAt.Format(time.RFC3339),
+	})
+}
+
+// ListHosts godoc
+// @Summary List execution hosts
+// @Description Returns all registered execution hosts.
+// @Tags Hosts
+// @Produce json
+// @Success 200 {array} ExecutionHostResponse
+// @Failure 401 {object} errorResponse
+// @Failure 403 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Security ApiKeyAuth
+// @Router /hosts [get]
+func (h *Handler) ListHosts(w http.ResponseWriter, r *http.Request) {
+	if err := h.authorizeRequest(r, "admin"); err != nil {
+		writeError(w, getStatusCode(err), err.Error())
+		return
+	}
+
+	hosts, err := h.hostService.ListHosts(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response := make([]ExecutionHostResponse, 0, len(hosts))
+	for _, host := range hosts {
+		var hostConfig map[string]interface{}
+		if err := json.Unmarshal(host.Config, &hostConfig); err != nil {
+			hostConfig = map[string]interface{}{}
+		}
+		response = append(response, ExecutionHostResponse{
+			ID:        host.ID,
+			Name:      host.Name,
+			Adapter:   host.Adapter,
+			Config:    hostConfig,
+			CreatedAt: host.CreatedAt.Format(time.RFC3339),
+			UpdatedAt: host.UpdatedAt.Format(time.RFC3339),
+		})
+	}
+
+	writeJSON(w, http.StatusOK, response)
+}
+
+// GetHost godoc
+// @Summary Get execution host
+// @Description Returns a registered execution host by ID.
+// @Tags Hosts
+// @Produce json
+// @Param id path string true "Host ID"
+// @Success 200 {object} ExecutionHostResponse
+// @Failure 401 {object} errorResponse
+// @Failure 403 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Security ApiKeyAuth
+// @Router /hosts/{id} [get]
+func (h *Handler) GetHost(w http.ResponseWriter, r *http.Request, id string) {
+	if err := h.authorizeRequest(r, "admin"); err != nil {
+		writeError(w, getStatusCode(err), err.Error())
+		return
+	}
+
+	host, err := h.hostService.GetHost(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	var hostConfig map[string]interface{}
+	if err := json.Unmarshal(host.Config, &hostConfig); err != nil {
+		hostConfig = map[string]interface{}{}
+	}
+
+	writeJSON(w, http.StatusOK, ExecutionHostResponse{
+		ID:        host.ID,
+		Name:      host.Name,
+		Adapter:   host.Adapter,
+		Config:    hostConfig,
+		CreatedAt: host.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: host.UpdatedAt.Format(time.RFC3339),
+	})
 }
 
 // ListWorkspaces godoc
@@ -576,7 +720,27 @@ type CreateWorkspaceRequestPayload struct {
 	Repo             string                 `json:"repo"`
 	Owner            string                 `json:"owner"`
 	Ref              string                 `json:"ref"`
+	HostID           string                 `json:"hostId"`
 	ExecutionProfile map[string]interface{} `json:"executionProfile"`
+}
+
+// CreateHostRequestPayload models the payload for registering an execution host.
+// swagger:model
+type CreateHostRequestPayload struct {
+	Name    string                 `json:"name"`
+	Adapter string                 `json:"adapter"`
+	Config  map[string]interface{} `json:"config"`
+}
+
+// ExecutionHostResponse models the runtime host configuration attached to the control plane.
+// swagger:model
+type ExecutionHostResponse struct {
+	ID        string                 `json:"id"`
+	Name      string                 `json:"name"`
+	Adapter   string                 `json:"adapter"`
+	Config    map[string]interface{} `json:"config"`
+	CreatedAt string                 `json:"createdAt"`
+	UpdatedAt string                 `json:"updatedAt"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, value interface{}) {

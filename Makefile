@@ -4,7 +4,7 @@ PKGS := ./...
 GOFILES := $(shell find . -type f -name '*.go' -not -path './.git/*' -not -path './execution/contracts/*')
 GOLANGCI_LINT ?= $(shell command -v golangci-lint 2>/dev/null || true)
 
-.PHONY: test vet lint check-format format generate-swagger generate-ent migrate-ent generate-ent-ddl init-db ci
+.PHONY: test vet lint check-format format generate-swagger init-db migrate ci
 
 # Run the full test suite.
 test:
@@ -32,28 +32,15 @@ format:
 generate-swagger:
 	swag init -g ./cmd/api/main.go --parseDependency -o docs
 
-# Generate Ent entity code from schema definitions.
-generate-ent:
-	go run -mod=mod entgo.io/ent/cmd/ent generate ./ent/schema
-
-# Generate the current DDL for the Ent schema.
-generate-ent-ddl:
-	go run -mod=mod entgo.io/ent/cmd/ent schema ./ent/schema --dialect postgres --version 15
-
-# Apply Ent schema changes to the database.
-migrate-ent:
-	@if [ -z "$$DATABASE_URL" ]; then \
-		echo "DATABASE_URL is not set"; exit 1; \
-	fi
-	go run ./cmd/ent-migrate
-
-# Initialize the PostgreSQL schema for the API.
+# Initialize the MongoDB schema and indexes required by the API.
 init-db:
-	@echo "Initializing PostgreSQL schema from db/schema.sql"
 	@if [ -z "$$DATABASE_URL" ]; then \
 		echo "DATABASE_URL is not set"; exit 1; \
 	fi
-	psql "$$DATABASE_URL" -f db/schema.sql
+	go run ./cmd/db-init
+
+# Apply MongoDB migrations.
+migrate: init-db
 
 # Run static analysis and vet.
 lint: vet

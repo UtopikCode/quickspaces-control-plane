@@ -11,25 +11,26 @@ import (
 	contracts "github.com/UtopikCode/quickspaces-execution-contracts"
 )
 
+type HostRepository interface {
+	GetByID(ctx context.Context, id string) (*domain.ExecutionHost, error)
+}
+
 type ExecutionService struct {
 	registry AdapterResolver
+	hostRepo HostRepository
 }
 
-type AdapterResolver interface {
-	Resolve(provider string) (contracts.ExecutionAdapter, error)
-}
-
-func NewExecutionService(registry AdapterResolver) *ExecutionService {
-	return &ExecutionService{registry: registry}
+func NewExecutionService(registry AdapterResolver, hostRepo HostRepository) *ExecutionService {
+	return &ExecutionService{registry: registry, hostRepo: hostRepo}
 }
 
 func ValidateExecutionProfile(raw json.RawMessage) error {
-	_, err := providerFromExecutionProfile(raw)
+	_, err := parseExecutionProfile(raw, false)
 	return err
 }
 
 func (s *ExecutionService) StartWorkspace(ctx context.Context, workspace *domain.Workspace) error {
-	adapter, err := s.adapterForWorkspace(workspace)
+	adapter, err := s.adapterForWorkspace(ctx, workspace)
 	if err != nil {
 		return err
 	}
@@ -42,7 +43,7 @@ func (s *ExecutionService) StartWorkspace(ctx context.Context, workspace *domain
 }
 
 func (s *ExecutionService) StopWorkspace(ctx context.Context, workspace *domain.Workspace) error {
-	adapter, err := s.adapterForWorkspace(workspace)
+	adapter, err := s.adapterForWorkspace(ctx, workspace)
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,7 @@ func (s *ExecutionService) StopWorkspace(ctx context.Context, workspace *domain.
 }
 
 func (s *ExecutionService) GetWorkspaceStatus(ctx context.Context, workspace *domain.Workspace) (string, error) {
-	adapter, err := s.adapterForWorkspace(workspace)
+	adapter, err := s.adapterForWorkspace(ctx, workspace)
 	if err != nil {
 		return "", err
 	}
@@ -59,7 +60,7 @@ func (s *ExecutionService) GetWorkspaceStatus(ctx context.Context, workspace *do
 }
 
 func toContractsWorkspace(workspace *domain.Workspace) (contracts.Workspace, error) {
-	executionProfile, err := parseExecutionProfile(workspace.ExecutionProfile)
+	executionProfile, err := parseExecutionProfile(workspace.ExecutionProfile, false)
 	if err != nil {
 		return contracts.Workspace{}, err
 	}
@@ -72,13 +73,25 @@ func toContractsWorkspace(workspace *domain.Workspace) (contracts.Workspace, err
 	}, nil
 }
 
-func (s *ExecutionService) adapterForWorkspace(workspace *domain.Workspace) (contracts.ExecutionAdapter, error) {
+func (s *ExecutionService) adapterForWorkspace(ctx context.Context, workspace *domain.Workspace) (contracts.ExecutionAdapter, error) {
+	if workspace.HostID != "" {
+		host, err := s.hostRepo.GetByID(ctx, workspace.HostID)
+		if err != nil {
+			return nil, err
+		}
+		adapter, err := s.registry.Resolve(host.Adapter, host.Config)
+		if err != nil {
+			return nil, fmt.Errorf("resolve execution adapter %q: %w", host.Adapter, err)
+		}
+		return adapter, nil
+	}
+
 	provider, err := providerFromExecutionProfile(workspace.ExecutionProfile)
 	if err != nil {
 		return nil, err
 	}
 
-	adapter, err := s.registry.Resolve(provider)
+	adapter, err := s.registry.Resolve(provider, nil)
 	if err != nil {
 		return nil, fmt.Errorf("resolve execution adapter %q: %w", provider, err)
 	}
@@ -87,9 +100,12 @@ func (s *ExecutionService) adapterForWorkspace(workspace *domain.Workspace) (con
 
 var errMissingProviderInExecutionProfile = errors.New("executionProfile.provider is required")
 
-func parseExecutionProfile(raw json.RawMessage) (contracts.ExecutionProfile, error) {
+func parseExecutionProfile(raw json.RawMessage, requireProvider bool) (contracts.ExecutionProfile, error) {
 	if len(raw) == 0 {
-		return contracts.ExecutionProfile{}, errMissingProviderInExecutionProfile
+		if requireProvider {
+			return contracts.ExecutionProfile{}, errMissingProviderInExecutionProfile
+		}
+		return contracts.ExecutionProfile{}, nil
 	}
 
 	var profile contracts.ExecutionProfile
@@ -97,7 +113,7 @@ func parseExecutionProfile(raw json.RawMessage) (contracts.ExecutionProfile, err
 		return contracts.ExecutionProfile{}, fmt.Errorf("invalid executionProfile: %w", err)
 	}
 
-	if strings.TrimSpace(profile.Provider) == "" {
+	if requireProvider && strings.TrimSpace(profile.Provider) == "" {
 		return contracts.ExecutionProfile{}, errMissingProviderInExecutionProfile
 	}
 
@@ -105,7 +121,7 @@ func parseExecutionProfile(raw json.RawMessage) (contracts.ExecutionProfile, err
 }
 
 func providerFromExecutionProfile(raw json.RawMessage) (string, error) {
-	profile, err := parseExecutionProfile(raw)
+	profile, err := parseExecutionProfile(raw, true)
 	if err != nil {
 		return "", err
 	}

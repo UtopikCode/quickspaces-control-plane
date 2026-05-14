@@ -20,24 +20,30 @@ type WorkspaceRepository interface {
 }
 
 type WorkspaceService struct {
-	repo    WorkspaceRepository
-	execSvc *execution.ExecutionService
+	repo     WorkspaceRepository
+	execSvc  *execution.ExecutionService
+	hostRepo execution.HostRepository
 }
 
-func NewWorkspaceService(repo WorkspaceRepository, execSvc *execution.ExecutionService) *WorkspaceService {
-	return &WorkspaceService{repo: repo, execSvc: execSvc}
+func NewWorkspaceService(repo WorkspaceRepository, hostRepo execution.HostRepository, execSvc *execution.ExecutionService) *WorkspaceService {
+	return &WorkspaceService{repo: repo, hostRepo: hostRepo, execSvc: execSvc}
 }
 
 type CreateWorkspaceRequest struct {
 	Repo             string                  `json:"repo"`
 	Owner            string                  `json:"owner"`
 	Ref              string                  `json:"ref"`
+	HostID           string                  `json:"hostId"`
 	ExecutionProfile domain.ExecutionProfile `json:"executionProfile"`
 }
 
 func (s *WorkspaceService) CreateWorkspace(ctx context.Context, request CreateWorkspaceRequest) (*domain.Workspace, error) {
-	if request.Repo == "" || request.Owner == "" || request.Ref == "" {
-		return nil, errors.New("repo, owner, and ref are required")
+	if request.Repo == "" || request.Owner == "" || request.Ref == "" || request.HostID == "" {
+		return nil, errors.New("repo, owner, ref, and hostId are required")
+	}
+
+	if _, err := s.hostRepo.GetByID(ctx, request.HostID); err != nil {
+		return nil, err
 	}
 
 	if err := execution.ValidateExecutionProfile(request.ExecutionProfile); err != nil {
@@ -50,6 +56,7 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, request CreateWo
 		Repo:             request.Repo,
 		Owner:            request.Owner,
 		Ref:              request.Ref,
+		HostID:           request.HostID,
 		DesiredState:     "stopped",
 		ActualState:      "stopped",
 		ExecutionProfile: request.ExecutionProfile,

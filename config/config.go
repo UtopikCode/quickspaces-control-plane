@@ -10,6 +10,7 @@ import (
 type Config struct {
 	ListenAddress      string
 	DatabaseURL        string
+	DatabaseName       string
 	GitHubClientID     string
 	GitHubClientSecret string
 	GitHubRedirectURL  string
@@ -25,6 +26,11 @@ func Load() (*Config, error) {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
 		return nil, errors.New("DATABASE_URL is required")
+	}
+
+	databaseName := strings.TrimSpace(os.Getenv("DATABASE_NAME"))
+	if databaseName == "" {
+		databaseName = "quickspaces"
 	}
 
 	githubClientID := strings.TrimSpace(os.Getenv("GITHUB_CLIENT_ID"))
@@ -53,6 +59,7 @@ func Load() (*Config, error) {
 	return &Config{
 		ListenAddress:      listenAddress,
 		DatabaseURL:        databaseURL,
+		DatabaseName:       databaseName,
 		GitHubClientID:     githubClientID,
 		GitHubClientSecret: githubClientSecret,
 		GitHubRedirectURL:  githubRedirectURL,
@@ -60,6 +67,23 @@ func Load() (*Config, error) {
 	}, nil
 }
 
+func LoadDatabaseConfig() (*Config, error) {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return nil, errors.New("DATABASE_URL is required")
+	}
+
+	databaseName := strings.TrimSpace(os.Getenv("DATABASE_NAME"))
+	if databaseName == "" {
+		databaseName = "quickspaces"
+	}
+
+	return &Config{
+		DatabaseURL:  databaseURL,
+		DatabaseName: databaseName,
+	}, nil
+}
+
 func (c *Config) String() string {
-	return fmt.Sprintf("listen=%s db=%s", c.ListenAddress, c.DatabaseURL)
+	return fmt.Sprintf("listen=%s db=%s name=%s", c.ListenAddress, c.DatabaseURL, c.DatabaseName)
 }

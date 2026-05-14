@@ -1,33 +1,40 @@
 package execution
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 
 	contracts "github.com/UtopikCode/quickspaces-execution-contracts"
 )
 
+type AdapterFactory func(hostConfig json.RawMessage) (contracts.ExecutionAdapter, error)
+
+type AdapterResolver interface {
+	Resolve(provider string, hostConfig json.RawMessage) (contracts.ExecutionAdapter, error)
+}
+
 type AdapterRegistry struct {
-	adapters map[string]contracts.ExecutionAdapter
+	factories map[string]AdapterFactory
 }
 
 func NewAdapterRegistry() *AdapterRegistry {
-	return &AdapterRegistry{adapters: make(map[string]contracts.ExecutionAdapter)}
+	return &AdapterRegistry{factories: make(map[string]AdapterFactory)}
 }
 
-func (r *AdapterRegistry) Register(provider string, adapter contracts.ExecutionAdapter) {
+func (r *AdapterRegistry) Register(provider string, factory AdapterFactory) {
 	provider = strings.ToLower(strings.TrimSpace(provider))
-	if provider == "" || adapter == nil {
+	if provider == "" || factory == nil {
 		return
 	}
-	r.adapters[provider] = adapter
+	r.factories[provider] = factory
 }
 
-func (r *AdapterRegistry) Resolve(provider string) (contracts.ExecutionAdapter, error) {
+func (r *AdapterRegistry) Resolve(provider string, hostConfig json.RawMessage) (contracts.ExecutionAdapter, error) {
 	provider = strings.ToLower(strings.TrimSpace(provider))
-	adapter, ok := r.adapters[provider]
+	factory, ok := r.factories[provider]
 	if !ok {
 		return nil, errors.New("unsupported execution provider")
 	}
-	return adapter, nil
+	return factory(hostConfig)
 }

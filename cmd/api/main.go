@@ -8,7 +8,7 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -17,17 +17,18 @@ import (
 	"strings"
 	"time"
 
-	"entgo.io/ent/dialect"
-	entsql "entgo.io/ent/dialect/sql"
 	"github.com/UtopikCode/quickspaces-control-plane/api"
 	"github.com/UtopikCode/quickspaces-control-plane/application"
 	"github.com/UtopikCode/quickspaces-control-plane/config"
-	"github.com/UtopikCode/quickspaces-control-plane/ent"
 	"github.com/UtopikCode/quickspaces-control-plane/execution"
 	"github.com/UtopikCode/quickspaces-control-plane/internal/application/auth"
 	githubclient "github.com/UtopikCode/quickspaces-control-plane/internal/infrastructure/github"
-	"github.com/UtopikCode/quickspaces-control-plane/persistence/postgres"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	mongopersistence "github.com/UtopikCode/quickspaces-control-plane/persistence/mongo"
+	contracts "github.com/UtopikCode/quickspaces-execution-contracts"
+	truenasadapter "github.com/UtopikCode/quickspaces-execution-truenas/adapter"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 // openAPISpec is a minimal OpenAPI 3.0.0 spec for the Control Plane API
@@ -39,37 +40,43 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 
-	db, err := sql.Open("pgx", cfg.DatabaseURL)
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.DatabaseURL))
 	if err != nil {
-		log.Fatalf("failed to open database: %v", err)
+		log.Fatalf("failed to connect to database: %v", err)
 	}
-
-	client := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.Postgres, db)))
 	defer func() {
-		if err := client.Close(); err != nil {
-			log.Printf("failed to close ent client: %v", err)
+		if err := client.Disconnect(ctx); err != nil {
+			log.Printf("failed to disconnect mongo client: %v", err)
 		}
 	}()
 
+	db := client.Database(cfg.DatabaseName)
+
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+	if err := client.Ping(ctx, readpref.Primary()); err != nil {
+		log.Fatalf("failed to ping database: %v", err)
 	}
 
 	registry := execution.NewAdapterRegistry()
 	// Register execution adapters via imported provider packages.
 	// The control-plane core itself remains adapter-agnostic and resolves providers by name at runtime.
-	execSvc := execution.NewExecutionService(registry)
-	repo := postgres.NewWorkspaceRepository(client)
-	accessRepo := postgres.NewAccessRuleRepository(db)
+	registry.Register("truenas", func(hostConfig json.RawMessage) (contracts.ExecutionAdapter, error) {
+		return truenasadapter.NewDefaultDockerExecutionAdapter()
+	})
+
+	repo := mongopersistence.NewWorkspaceRepository(db)
+	hostRepo := mongopersistence.NewHostRepository(db)
+	execSvc := execution.NewExecutionService(registry, hostRepo)
+	accessRepo := mongopersistence.NewAccessRuleRepository(db)
 
 	// Create GitHub client for OAuth
 	githubClient := githubclient.NewClient(cfg.GitHubClientID, cfg.GitHubClientSecret, cfg.GitHubRedirectURL)
 
-	service := application.NewWorkspaceService(repo, execSvc)
+	service := application.NewWorkspaceService(repo, hostRepo, execSvc)
+	hostService := application.NewHostService(hostRepo)
 	authService := auth.NewService(accessRepo, cfg.InitialAccessRules)
-	handler := api.NewHandler(service, authService, githubClient)
+	handler := api.NewHandler(service, hostService, authService, githubClient)
 	apiRouter := api.NewRouter(handler)
 
 	openAPISpecPath, err := resolveOpenAPISpecPath()

@@ -9,16 +9,44 @@ definitions:
       subjectType:
         type: string
     type: object
+  api.CreateHostRequestPayload:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      provider:
+        type: string
+    type: object
   api.CreateWorkspaceRequestPayload:
     properties:
       executionProfile:
         additionalProperties: true
         type: object
+      hostId:
+        type: string
       owner:
         type: string
       ref:
         type: string
       repo:
+        type: string
+    type: object
+  api.ExecutionHostResponse:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      createdAt:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      provider:
+        type: string
+      updatedAt:
         type: string
     type: object
   api.GrantAccessRequestPayload:
@@ -54,6 +82,8 @@ definitions:
         items:
           type: integer
         type: array
+      hostId:
+        type: string
       id:
         type: string
       owner:
@@ -233,6 +263,104 @@ paths:
       summary: Health check
       tags:
       - Health
+  /hosts:
+    get:
+      description: Returns all registered execution hosts.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.ExecutionHostResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: List execution hosts
+      tags:
+      - Hosts
+    post:
+      consumes:
+      - application/json
+      description: Registers an execution host with provider-specific config that
+        can be bound to workspaces.
+      parameters:
+      - description: Create host request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreateHostRequestPayload'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api.ExecutionHostResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Register a new execution host
+      tags:
+      - Hosts
+  /hosts/{id}:
+    get:
+      description: Returns a registered execution host by ID.
+      parameters:
+      - description: Host ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ExecutionHostResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get execution host
+      tags:
+      - Hosts
   /workspaces:
     get:
       description: Returns all configured workspaces.

@@ -1,0 +1,12 @@
+[
+  {
+    "createIndexes": "access_rules",
+    "indexes": [
+      {
+        "key": {"subject_type": 1, "subject_id": 1},
+        "name": "subject_type_subject_id_unique",
+        "unique": true
+      }
+    ]
+  }
+]

@@ -76,6 +76,35 @@ func (a *testAdapter) StopWorkspace(ctx context.Context, id string) error {
 	return nil
 }
 
+type mockHostRepo struct {
+	hosts map[string]*domain.ExecutionHost
+}
+
+func newMockHostRepo() *mockHostRepo {
+	return &mockHostRepo{hosts: make(map[string]*domain.ExecutionHost)}
+}
+
+func (r *mockHostRepo) GetByID(ctx context.Context, id string) (*domain.ExecutionHost, error) {
+	host, ok := r.hosts[id]
+	if !ok {
+		return nil, domain.ErrHostNotFound
+	}
+	return host, nil
+}
+
+func (r *mockHostRepo) Create(ctx context.Context, host *domain.ExecutionHost) error {
+	r.hosts[host.ID] = host
+	return nil
+}
+
+func (r *mockHostRepo) List(ctx context.Context) ([]*domain.ExecutionHost, error) {
+	result := make([]*domain.ExecutionHost, 0, len(r.hosts))
+	for _, host := range r.hosts {
+		result = append(result, host)
+	}
+	return result, nil
+}
+
 type fakeAccessRuleRepo struct {
 	rules []*auth.AccessRule
 }
@@ -135,11 +164,16 @@ func (m *mockGitHubClient) GetUserTeams(token string) ([]githubclient.GithubTeam
 
 func TestHealthEndpoint(t *testing.T) {
 	repo := newTestRepo()
+	hostRepo := newMockHostRepo()
+	hostRepo.hosts["host-1"] = &domain.ExecutionHost{ID: "host-1", Name: "trueNAS host", Adapter: "truenas", Config: json.RawMessage(`{}`), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	registry := execution.NewAdapterRegistry()
-	registry.Register("truenas", &testAdapter{})
-	service := application.NewWorkspaceService(repo, execution.NewExecutionService(registry))
+	registry.Register("truenas", func(_ json.RawMessage) (contracts.ExecutionAdapter, error) {
+		return &testAdapter{}, nil
+	})
+	service := application.NewWorkspaceService(repo, hostRepo, execution.NewExecutionService(registry, hostRepo))
 	authService := auth.NewService(&fakeAccessRuleRepo{rules: []*auth.AccessRule{{SubjectType: "user", SubjectID: "testuser", Role: "admin"}}}, nil)
-	h := NewHandler(service, authService, &mockGitHubClient{})
+	hostService := application.NewHostService(hostRepo)
+	h := NewHandler(service, hostService, authService, &mockGitHubClient{})
 	router := NewRouter(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
@@ -154,18 +188,24 @@ func TestHealthEndpoint(t *testing.T) {
 
 func TestCreateAndStartWorkspace(t *testing.T) {
 	repo := newTestRepo()
+	hostRepo := newMockHostRepo()
+	hostRepo.hosts["host-1"] = &domain.ExecutionHost{ID: "host-1", Name: "trueNAS host", Adapter: "truenas", Config: json.RawMessage(`{}`), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 	registry := execution.NewAdapterRegistry()
-	registry.Register("truenas", &testAdapter{})
-	service := application.NewWorkspaceService(repo, execution.NewExecutionService(registry))
+	registry.Register("truenas", func(_ json.RawMessage) (contracts.ExecutionAdapter, error) {
+		return &testAdapter{}, nil
+	})
+	service := application.NewWorkspaceService(repo, hostRepo, execution.NewExecutionService(registry, hostRepo))
 	authService := auth.NewService(&fakeAccessRuleRepo{rules: []*auth.AccessRule{{SubjectType: "user", SubjectID: "testuser", Role: "admin"}}}, nil)
-	h := NewHandler(service, authService, &mockGitHubClient{})
+	hostService := application.NewHostService(hostRepo)
+	h := NewHandler(service, hostService, authService, &mockGitHubClient{})
 	router := NewRouter(h)
 
 	payload := map[string]interface{}{
 		"repo":             "github.com/example/repo",
 		"owner":            "team-a",
 		"ref":              "main",
-		"executionProfile": map[string]string{"provider": "truenas"},
+		"hostId":           "host-1",
+		"executionProfile": map[string]interface{}{"runtimeConfig": map[string]interface{}{"image": "ubuntu:24.04"}},
 	}
 	body, _ := json.Marshal(payload)
 
