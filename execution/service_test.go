@@ -28,9 +28,9 @@ func (a *testAdapter) GetWorkspaceStatus(ctx context.Context, id string) (contra
 }
 
 func TestExecutionServiceResolvesProviderFromExecutionProfile(t *testing.T) {
-	awsAdapter := &testAdapter{}
+	adapter := &testAdapter{}
 	registry := NewAdapterRegistry()
-	registry.Register("aws", awsAdapter)
+	registry.Register("test", adapter)
 	service := NewExecutionService(registry)
 
 	workspace := &domain.Workspace{
@@ -39,14 +39,32 @@ func TestExecutionServiceResolvesProviderFromExecutionProfile(t *testing.T) {
 		Owner:            "owner",
 		Ref:              "main",
 		DesiredState:     "running",
-		ExecutionProfile: json.RawMessage(`{"provider":"aws"}`),
+		ExecutionProfile: json.RawMessage(`{"provider":"test"}`),
 	}
 
 	if err := service.StartWorkspace(context.Background(), workspace); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if !awsAdapter.started {
-		t.Fatal("expected aws adapter to be used")
+	if !adapter.started {
+		t.Fatal("expected resolved adapter to be used")
+	}
+}
+
+func TestExecutionServiceResolvesProviderCaseInsensitively(t *testing.T) {
+	adapter := &testAdapter{}
+	registry := NewAdapterRegistry()
+	registry.Register("test", adapter)
+	service := NewExecutionService(registry)
+
+	workspace := &domain.Workspace{
+		ExecutionProfile: json.RawMessage(`{"provider":"TeSt"}`),
+	}
+
+	if err := service.StartWorkspace(context.Background(), workspace); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !adapter.started {
+		t.Fatal("expected resolved adapter to be used for mixed-case provider")
 	}
 }
 
@@ -57,6 +75,16 @@ func TestExecutionServiceFailsWhenProviderUnsupported(t *testing.T) {
 	err := service.StartWorkspace(context.Background(), workspace)
 	if err == nil {
 		t.Fatal("expected error for unsupported provider")
+	}
+}
+
+func TestExecutionServiceFailsWhenExecutionProfileMissing(t *testing.T) {
+	service := NewExecutionService(NewAdapterRegistry())
+	workspace := &domain.Workspace{ExecutionProfile: nil}
+
+	err := service.StartWorkspace(context.Background(), workspace)
+	if err == nil {
+		t.Fatal("expected error when execution profile is missing")
 	}
 }
 

@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	entgo.io/ent v0.14.6
-	github.com/UtopikCode/quickspaces-execution-contracts v0.0.0-20260512162415-d0eadd87f4ba
+	github.com/UtopikCode/quickspaces-execution-contracts v1.0.1
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/swaggo/swag v1.16.6

@@ -10,8 +10,8 @@ github.com/PuerkitoBio/purell v1.1.1 h1:WEQqlqaGbrPkxLJWfBwQmfEAE1Z7ONdDLqrN38tN
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 h1:d+Bc7a5rLufV/sSk/8dngufqelfh6jnri85riMAaF/M=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
-github.com/UtopikCode/quickspaces-execution-contracts v0.0.0-20260512162415-d0eadd87f4ba h1:VXc1qiSxut1quPIKHdGwPb9S7Z2z7H6ioL5R6o5UrV0=
-github.com/UtopikCode/quickspaces-execution-contracts v0.0.0-20260512162415-d0eadd87f4ba/go.mod h1:osqX8HVQnMjDchj9kNao7mTkGAcRBmYU26yVKsbZkU0=
+github.com/UtopikCode/quickspaces-execution-contracts v1.0.1 h1:xaGJApKvXOqsLru0tNPPtk7onrlY/gca/Z7UeMs/X5E=
+github.com/UtopikCode/quickspaces-execution-contracts v1.0.1/go.mod h1:osqX8HVQnMjDchj9kNao7mTkGAcRBmYU26yVKsbZkU0=
 github.com/agext/levenshtein v1.2.3 h1:YB2fHEn0UJagG8T1rrWknE3ZQzWM06O8AMAatNn7lmo=
 github.com/agext/levenshtein v1.2.3/go.mod h1:JEDfjyjHDjOF/1e4FlBE/PkbqA9OfWu2ki2W0IB5558=
 github.com/apparentlymart/go-textseg/v15 v15.0.0 h1:uYvfpb3DyLSCGWnctWKGj857c6ew1u1fNQOlOtuGxQY=
