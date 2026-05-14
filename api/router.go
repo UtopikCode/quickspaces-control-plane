@@ -3,31 +3,25 @@ package api
 import (
 	"net/http"
 	"strings"
-
-	_ "github.com/UtopikCode/quickspaces-control-plane/docs"
-	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type Router struct {
 	handler *Handler
 }
 
+// NewRouter creates a pure API router focused on core functionality.
+// API documentation is served separately via Scalar.
 func NewRouter(handler *Handler) http.Handler {
 	router := &Router{handler: handler}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/health", router.handleHealth)
+	mux.HandleFunc("/api/v1/auth/login", router.handleLogin)
+	mux.HandleFunc("/api/v1/auth/callback", router.handleAuthCallback)
+	mux.HandleFunc("/api/v1/auth/token", router.handleTokenExchange)
 	mux.HandleFunc("/api/v1/workspaces", router.handleWorkspaces)
 	mux.HandleFunc("/api/v1/workspaces/", router.handleWorkspaceActions)
-	mux.HandleFunc("/swagger", func(w http.ResponseWriter, r *http.Request) {
-		http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently).ServeHTTP(w, r)
-	})
-	mux.Handle("/swagger/", httpSwagger.WrapHandler)
-	mux.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
-		http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently).ServeHTTP(w, r)
-	})
-	mux.HandleFunc("/docs/", func(w http.ResponseWriter, r *http.Request) {
-		http.RedirectHandler("/swagger/index.html", http.StatusMovedPermanently).ServeHTTP(w, r)
-	})
+	mux.HandleFunc("/api/v1/access", router.handleAccess)
+	mux.HandleFunc("/api/v1/access/", router.handleAccess)
 	return mux
 }
 
@@ -83,4 +77,52 @@ func (r *Router) handleWorkspaceActions(w http.ResponseWriter, req *http.Request
 	default:
 		http.NotFound(w, req)
 	}
+}
+
+func (r *Router) handleAccess(w http.ResponseWriter, req *http.Request) {
+	path := strings.TrimPrefix(req.URL.Path, "/api/v1/access")
+	path = strings.Trim(path, "/")
+
+	if path != "" {
+		http.NotFound(w, req)
+		return
+	}
+
+	switch req.Method {
+	case http.MethodGet:
+		r.handler.ListAccess(w, req)
+	case http.MethodPost:
+		r.handler.GrantAccess(w, req)
+	case http.MethodDelete:
+		r.handler.RemoveAccess(w, req)
+	default:
+		http.NotFound(w, req)
+	}
+}
+
+func (r *Router) handleLogin(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.NotFound(w, req)
+		return
+	}
+	r.handler.Login(w, req)
+}
+
+func (r *Router) handleAuthCallback(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case http.MethodGet:
+		r.handler.AuthCallback(w, req)
+	case http.MethodPost:
+		r.handler.TokenExchange(w, req)
+	default:
+		http.NotFound(w, req)
+	}
+}
+
+func (r *Router) handleTokenExchange(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.NotFound(w, req)
+		return
+	}
+	r.handler.TokenExchange(w, req)
 }

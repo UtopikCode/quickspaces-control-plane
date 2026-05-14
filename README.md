@@ -23,6 +23,14 @@ This repository implements a clean control plane for QuickSpaces:
 - `config` — environment-driven configuration
 - `docs` — architecture documentation
 
+## API Versioning
+
+All routes are explicitly versioned under `/api/v1`.
+
+- Versioned API paths use the stable prefix `/api/v1`.
+- Non-API routes such as `/swagger` and `/health` remain outside the API version prefix.
+- Future major versions such as `/api/v2` can be added without changing existing v1 route handlers.
+
 ## Running locally
 
 1. Configure PostgreSQL and export `DATABASE_URL`.
@@ -37,13 +45,19 @@ By default the server listens on `:8080` unless `LISTEN_ADDR` is provided.
 
 ## Development commands
 
-Use the Makefile to run tests, linting, generation, and formatting:
+Use the Makefile to run tests, linting, generation, formatting, and database initialization:
 
 ```bash
 make test
 make lint
-make generate
+make vet
 make format
+make check-format
+make generate-swagger
+make generate-ent
+make migrate-ent
+make generate-ent-ddl
+make init-db
 make ci
 ```
 
@@ -60,8 +74,33 @@ go generate ./cmd/api
 - `DATABASE_URL` — Postgres DSN, required
 - `EXECUTION_PROVIDER` — execution adapter provider (`aws` or `truenas`), defaults to `truenas`
 - `LISTEN_ADDR` — HTTP listen address, defaults to `:8080`
+- `GITHUB_CLIENT_ID` — GitHub OAuth App client ID, required
+- `GITHUB_CLIENT_SECRET` — GitHub OAuth App client secret, required
+- `GITHUB_REDIRECT_URL` — OAuth callback URL, required
+- `ADMIN_USERS` — comma-separated GitHub login(s) allowed to bootstrap the first admin, optional
+
+If you want the Swagger UI authorize button to work, register the backend callback URL as the OAuth redirect URL:
+
+- `http://localhost:8080/api/v1/auth/callback`
+
+## Authentication and authorization
+
+This control plane is stateless. GitHub is the source of truth for identity, and the database stores only access rules.
+
+- `GET /api/v1/auth/login` starts GitHub OAuth.
+- `GET /api/v1/auth/callback?code=...` returns an OAuth access token and the authenticated identity.
+- All workspace routes require `Authorization: Bearer <token>`.
+- Access is granted by `access_rules` in the database, not by internal user records.
 
 ## Database schema
+
+Initialize the database schema with:
+
+```bash
+DATABASE_URL=postgres://user:pass@host:5432/dbname?sslmode=disable make init-db
+```
+
+Or create the tables manually from `db/schema.sql`.
 
 Create the `workspaces` table before running the API, for example:
 
@@ -78,6 +117,24 @@ CREATE TABLE IF NOT EXISTS workspaces (
     updated_at TIMESTAMPTZ NOT NULL
 );
 ```
+
+Create the `access_rules` table to drive authorization:
+
+```sql
+CREATE TABLE IF NOT EXISTS access_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    "type" TEXT NOT NULL,
+    value TEXT NOT NULL,
+    role TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+```
+
+Supported rule types:
+
+- `user` with `value` set to a GitHub login
+- `org` with `value` set to a GitHub organization login
+- `team` with `value` set to `org/team`
 
 ## API
 

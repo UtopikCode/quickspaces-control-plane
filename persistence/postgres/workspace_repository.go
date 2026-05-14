@@ -2,131 +2,100 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	"github.com/UtopikCode/quickspaces-control-plane/domain"
+	entclient "github.com/UtopikCode/quickspaces-control-plane/ent"
+	"github.com/UtopikCode/quickspaces-control-plane/ent/workspace"
 )
 
 type WorkspaceRepository struct {
-	db *sql.DB
+	client *entclient.Client
 }
 
-func NewWorkspaceRepository(db *sql.DB) *WorkspaceRepository {
-	return &WorkspaceRepository{db: db}
+func NewWorkspaceRepository(client *entclient.Client) *WorkspaceRepository {
+	return &WorkspaceRepository{client: client}
 }
 
-func (r *WorkspaceRepository) Create(ctx context.Context, workspace *domain.Workspace) error {
-	const query = `INSERT INTO workspaces (
-		id,
-		repo,
-		owner,
-		ref,
-		desired_state,
-		actual_state,
-		execution_profile,
-		created_at,
-		updated_at
-	) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`
+func toDomainWorkspace(entity *entclient.Workspace) *domain.Workspace {
+	if entity == nil {
+		return nil
+	}
+	return &domain.Workspace{
+		ID:               entity.ID,
+		Repo:             entity.Repo,
+		Owner:            entity.Owner,
+		Ref:              entity.Ref,
+		DesiredState:     entity.DesiredState,
+		ActualState:      entity.ActualState,
+		ExecutionProfile: entity.ExecutionProfile,
+		CreatedAt:        entity.CreatedAt,
+		UpdatedAt:        entity.UpdatedAt,
+	}
+}
 
-	_, err := r.db.ExecContext(ctx, query,
-		workspace.ID,
-		workspace.Repo,
-		workspace.Owner,
-		workspace.Ref,
-		workspace.DesiredState,
-		workspace.ActualState,
-		workspace.ExecutionProfile,
-		workspace.CreatedAt,
-		workspace.UpdatedAt,
-	)
+func (r *WorkspaceRepository) Create(ctx context.Context, workspaceModel *domain.Workspace) error {
+	_, err := r.client.Workspace.Create().
+		SetID(workspaceModel.ID).
+		SetRepo(workspaceModel.Repo).
+		SetOwner(workspaceModel.Owner).
+		SetRef(workspaceModel.Ref).
+		SetDesiredState(workspaceModel.DesiredState).
+		SetActualState(workspaceModel.ActualState).
+		SetExecutionProfile(workspaceModel.ExecutionProfile).
+		SetCreatedAt(workspaceModel.CreatedAt).
+		SetUpdatedAt(workspaceModel.UpdatedAt).
+		Save(ctx)
 	return err
 }
 
 func (r *WorkspaceRepository) GetByID(ctx context.Context, id string) (*domain.Workspace, error) {
-	const query = `SELECT id, repo, owner, ref, desired_state, actual_state, execution_profile, created_at, updated_at FROM workspaces WHERE id = $1`
-
-	workspace := &domain.Workspace{}
-	var executionProfile []byte
-	if err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&workspace.ID,
-		&workspace.Repo,
-		&workspace.Owner,
-		&workspace.Ref,
-		&workspace.DesiredState,
-		&workspace.ActualState,
-		&executionProfile,
-		&workspace.CreatedAt,
-		&workspace.UpdatedAt,
-	); err != nil {
-		if err == sql.ErrNoRows {
+	entity, err := r.client.Workspace.Get(ctx, id)
+	if err != nil {
+		if entclient.IsNotFound(err) {
 			return nil, domain.ErrWorkspaceNotFound
 		}
 		return nil, err
 	}
-	workspace.ExecutionProfile = executionProfile
-	return workspace, nil
+	return toDomainWorkspace(entity), nil
 }
 
 func (r *WorkspaceRepository) List(ctx context.Context) ([]*domain.Workspace, error) {
-	const query = `SELECT id, repo, owner, ref, desired_state, actual_state, execution_profile, created_at, updated_at FROM workspaces ORDER BY created_at DESC`
-
-	rows, err := r.db.QueryContext(ctx, query)
+	entities, err := r.client.Workspace.Query().Order(workspace.ByCreatedAt(sql.OrderDesc())).All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
 
-	var result []*domain.Workspace
-	for rows.Next() {
-		workspace := &domain.Workspace{}
-		var executionProfile []byte
-		if err := rows.Scan(
-			&workspace.ID,
-			&workspace.Repo,
-			&workspace.Owner,
-			&workspace.Ref,
-			&workspace.DesiredState,
-			&workspace.ActualState,
-			&executionProfile,
-			&workspace.CreatedAt,
-			&workspace.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		workspace.ExecutionProfile = executionProfile
-		result = append(result, workspace)
+	result := make([]*domain.Workspace, 0, len(entities))
+	for _, entity := range entities {
+		result = append(result, toDomainWorkspace(entity))
 	}
-
-	return result, rows.Err()
+	return result, nil
 }
 
 func (r *WorkspaceRepository) UpdateDesiredState(ctx context.Context, id, desiredState string, updatedAt time.Time) error {
-	const query = `UPDATE workspaces SET desired_state = $1, updated_at = $2 WHERE id = $3`
-	res, err := r.db.ExecContext(ctx, query, desiredState, updatedAt, id)
+	_, err := r.client.Workspace.UpdateOneID(id).
+		SetDesiredState(desiredState).
+		SetUpdatedAt(updatedAt).
+		Save(ctx)
 	if err != nil {
-		return err
+		if entclient.IsNotFound(err) {
+			return domain.ErrWorkspaceNotFound
+		}
 	}
-	if affected, err := res.RowsAffected(); err != nil {
-		return err
-	} else if affected == 0 {
-		return domain.ErrWorkspaceNotFound
-	}
-	return nil
+	return err
 }
 
 func (r *WorkspaceRepository) UpdateActualState(ctx context.Context, id, actualState string, updatedAt time.Time) error {
-	const query = `UPDATE workspaces SET actual_state = $1, updated_at = $2 WHERE id = $3`
-	res, err := r.db.ExecContext(ctx, query, actualState, updatedAt, id)
+	_, err := r.client.Workspace.UpdateOneID(id).
+		SetActualState(actualState).
+		SetUpdatedAt(updatedAt).
+		Save(ctx)
 	if err != nil {
-		return err
+		if entclient.IsNotFound(err) {
+			return domain.ErrWorkspaceNotFound
+		}
 	}
-	if affected, err := res.RowsAffected(); err != nil {
-		return err
-	} else if affected == 0 {
-		return domain.ErrWorkspaceNotFound
-	}
-	return nil
+	return err
 }

@@ -14,7 +14,8 @@
       },
       "buildFlags": "",
       "args": [],
-      "showLog": true
+      "showLog": true,
+      "preLaunchTask": "Generate Swagger docs"
     }
   ]
 }

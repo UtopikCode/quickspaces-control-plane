@@ -12,19 +12,3 @@ jobs:
     with:
       go-version: '1.23'
       make-target: 'ci'
-
-  swagger-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
-        with:
-          go-version: '1.23'
-      - name: Install swag
-        run: go install github.com/swaggo/swag/cmd/swag@latest
-      - name: Generate Swagger docs
-        run: |
-          cd cmd/api
-          swag init --parseDependency --parseInternal -g docs.go -o ../../docs
-      - name: Ensure generated docs are up to date
-        run: git diff --exit-code docs

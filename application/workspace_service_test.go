@@ -9,7 +9,7 @@ import (
 
 	"github.com/UtopikCode/quickspaces-control-plane/domain"
 	"github.com/UtopikCode/quickspaces-control-plane/execution"
-	"github.com/UtopikCode/quickspaces-execution-contracts"
+	contracts "github.com/UtopikCode/quickspaces-execution-contracts"
 )
 
 type mockRepo struct {
@@ -66,27 +66,26 @@ type mockAdapter struct {
 	stopped bool
 }
 
-func (m *mockAdapter) StartWorkspace(ctx context.Context, workspace contracts.WorkspaceSpec) error {
+func (m *mockAdapter) StartWorkspace(ctx context.Context, workspace contracts.Workspace) (contracts.WorkspaceState, error) {
 	m.started = true
-	return nil
+	return contracts.WorkspaceStateRunning, nil
 }
 
-func (m *mockAdapter) StopWorkspace(ctx context.Context, workspace contracts.WorkspaceSpec) error {
+func (m *mockAdapter) StopWorkspace(ctx context.Context, id string) error {
 	m.stopped = true
 	return nil
 }
 
-func (m *mockAdapter) GetWorkspaceStatus(ctx context.Context, workspace contracts.WorkspaceSpec) (string, error) {
-	if workspace.DesiredState == "running" {
-		return "running", nil
-	}
-	return "stopped", nil
+func (m *mockAdapter) GetWorkspaceStatus(ctx context.Context, id string) (contracts.WorkspaceState, error) {
+	return contracts.WorkspaceStateStopped, nil
 }
 
 func TestCreateWorkspace(t *testing.T) {
 	repo := newMockRepo()
 	adapter := &mockAdapter{}
-	service := NewWorkspaceService(repo, execution.NewExecutionService(adapter))
+	registry := execution.NewAdapterRegistry()
+	registry.Register("truenas", adapter)
+	service := NewWorkspaceService(repo, execution.NewExecutionService(registry))
 
 	workspace, err := service.CreateWorkspace(context.Background(), CreateWorkspaceRequest{
 		Repo:             "github.com/example/repo",
@@ -105,7 +104,9 @@ func TestCreateWorkspace(t *testing.T) {
 func TestStartStopAndReconcile(t *testing.T) {
 	repo := newMockRepo()
 	adapter := &mockAdapter{}
-	service := NewWorkspaceService(repo, execution.NewExecutionService(adapter))
+	registry := execution.NewAdapterRegistry()
+	registry.Register("truenas", adapter)
+	service := NewWorkspaceService(repo, execution.NewExecutionService(registry))
 
 	workspace, err := service.CreateWorkspace(context.Background(), CreateWorkspaceRequest{
 		Repo:             "github.com/example/repo",
@@ -151,7 +152,9 @@ func TestStartStopAndReconcile(t *testing.T) {
 func TestGetWorkspaceNotFound(t *testing.T) {
 	repo := newMockRepo()
 	adapter := &mockAdapter{}
-	service := NewWorkspaceService(repo, execution.NewExecutionService(adapter))
+	registry := execution.NewAdapterRegistry()
+	registry.Register("truenas", adapter)
+	service := NewWorkspaceService(repo, execution.NewExecutionService(registry))
 
 	_, err := service.GetWorkspace(context.Background(), "missing")
 	if !errors.Is(err, domain.ErrWorkspaceNotFound) {
@@ -162,7 +165,9 @@ func TestGetWorkspaceNotFound(t *testing.T) {
 func TestListWorkspaces(t *testing.T) {
 	repo := newMockRepo()
 	adapter := &mockAdapter{}
-	service := NewWorkspaceService(repo, execution.NewExecutionService(adapter))
+	registry := execution.NewAdapterRegistry()
+	registry.Register("truenas", adapter)
+	service := NewWorkspaceService(repo, execution.NewExecutionService(registry))
 
 	_, err := service.CreateWorkspace(context.Background(), CreateWorkspaceRequest{
 		Repo:             "github.com/example/repo",

@@ -3,12 +3,16 @@
   "dockerComposeFile": ["docker-compose.yml"],
   "service": "app",
   "workspaceFolder": "/workspace",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
-  "extensions": [
-    "golang.go",
-    "ms-azuretools.vscode-docker"
-  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  },
   "postCreateCommand": "go mod tidy && go install github.com/swaggo/swag/cmd/swag@latest",
+  "postStartCommand": "make migrate-ent",
   "runServices": ["postgres"],
   "shutdownAction": "stopCompose",
   "forwardPorts": [5432]

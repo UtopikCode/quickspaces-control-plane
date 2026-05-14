@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Generate Swagger docs",
+      "type": "shell",
+      "command": "make generate-swagger",
+      "problemMatcher": [],
+      "group": "build"
+    }
+  ]
+}

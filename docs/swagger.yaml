@@ -1,16 +1,40 @@
 basePath: /api/v1
 definitions:
-  api.createWorkspaceRequest:
+  api.AccessRuleResponse:
+    properties:
+      role:
+        type: string
+      subjectId:
+        type: string
+      subjectType:
+        type: string
+    type: object
+  api.CreateWorkspaceRequestPayload:
     properties:
       executionProfile:
-        items:
-          type: integer
-        type: array
+        additionalProperties: true
+        type: object
       owner:
         type: string
       ref:
         type: string
       repo:
+        type: string
+    type: object
+  api.GrantAccessRequestPayload:
+    properties:
+      role:
+        type: string
+      subjectId:
+        type: string
+      subjectType:
+        type: string
+    type: object
+  api.RemoveAccessRequestPayload:
+    properties:
+      subjectId:
+        type: string
+      subjectType:
         type: string
     type: object
   api.errorResponse:
@@ -43,18 +67,157 @@ definitions:
     type: object
 host: localhost:8080
 info:
-  contact:
-    email: support@example.com
-    name: API Support
-    url: http://example.com/support
+  contact: {}
   description: Stateless Control Plane API for QuickSpaces.
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
-  termsOfService: http://example.com/terms/
   title: QuickSpaces Control Plane API
   version: "1.0"
 paths:
+  /access:
+    delete:
+      consumes:
+      - application/json
+      description: Removes a global GitHub access rule.
+      parameters:
+      - description: Remove access request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.RemoveAccessRequestPayload'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: Remove an access rule
+      tags:
+      - Access
+    get:
+      description: Returns all configured GitHub access rules.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.AccessRuleResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: List access rules
+      tags:
+      - Access
+    post:
+      consumes:
+      - application/json
+      description: Inserts or updates a global GitHub access rule.
+      parameters:
+      - description: Grant access request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.GrantAccessRequestPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.AccessRuleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: Grant or update an access rule
+      tags:
+      - Access
+  /auth/login:
+    get:
+      description: Redirects a client to GitHub to begin OAuth authentication.
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Found
+      summary: Redirect user to GitHub OAuth login
+      tags:
+      - Auth
+  /auth/token:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Exchanges an OAuth2 code for an access token (used by client-side
+        apps).
+      parameters:
+      - description: OAuth authorization code
+        in: formData
+        name: code
+        required: true
+        type: string
+      - description: PKCE code verifier (if PKCE was used)
+        in: formData
+        name: code_verifier
+        type: string
+      - description: Grant type (authorization_code)
+        in: formData
+        name: grant_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.errorResponse'
+      summary: Exchange OAuth code for token
+      tags:
+      - Auth
   /health:
     get:
       description: Returns whether the control plane API is healthy.
@@ -99,7 +262,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/api.createWorkspaceRequest'
+          $ref: '#/definitions/api.CreateWorkspaceRequestPayload'
       produces:
       - application/json
       responses:

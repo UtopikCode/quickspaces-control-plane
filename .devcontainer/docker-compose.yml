@@ -1,16 +1,13 @@
-version: '3.9'
 services:
   app:
     image: mcr.microsoft.com/devcontainers/go:1-bookworm
+    env_file:
+      - ../.env
     volumes:
       - ..:/workspace:cached
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      LISTEN_ADDR: ":8080"
-      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/quickspaces?sslmode=disable"
-      EXECUTION_PROVIDER: "truenas"
     command: sleep infinity
 
   postgres:

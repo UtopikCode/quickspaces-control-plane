@@ -40,6 +40,10 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, request CreateWo
 		return nil, errors.New("repo, owner, and ref are required")
 	}
 
+	if err := execution.ValidateExecutionProfile(request.ExecutionProfile); err != nil {
+		return nil, err
+	}
+
 	now := time.Now().UTC()
 	workspace := &domain.Workspace{
 		ID:               generateID(),
