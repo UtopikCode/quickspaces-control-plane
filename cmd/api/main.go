@@ -68,7 +68,7 @@ func main() {
 	githubClient := githubclient.NewClient(cfg.GitHubClientID, cfg.GitHubClientSecret, cfg.GitHubRedirectURL)
 
 	service := application.NewWorkspaceService(repo, execSvc)
-	authService := auth.NewService(accessRepo, cfg.InitialAdminUsers)
+	authService := auth.NewService(accessRepo, cfg.InitialAccessRules)
 	handler := api.NewHandler(service, authService, githubClient)
 	apiRouter := api.NewRouter(handler)
 

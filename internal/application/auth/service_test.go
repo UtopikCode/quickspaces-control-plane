@@ -115,3 +115,19 @@ func TestAuthorizeRejectsWhenNoRulesAndInitialAdminNotConfigured(t *testing.T) {
 		t.Fatal("expected access denied when no rules exist and no initial admin configured")
 	}
 }
+
+func TestAuthorizeBootstrapsInitialRulesWhenNoExistingRules(t *testing.T) {
+	repo := &fakeAccessRuleRepo{}
+	service := NewService(repo, []string{"alice", "org:acme", "team:acme/developers"})
+
+	allowed, role, err := service.Authorize(context.Background(), githubclient.GithubUser{Login: "alice"}, []string{"acme"}, []githubclient.GithubTeam{{Org: "acme", Name: "developers"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !allowed || role != "admin" {
+		t.Fatalf("expected admin access after bootstrap, got allowed=%v role=%q", allowed, role)
+	}
+	if len(repo.rules) != 3 {
+		t.Fatalf("expected 3 bootstrap rules to be created, got %d", len(repo.rules))
+	}
+}

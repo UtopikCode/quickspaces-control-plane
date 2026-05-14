@@ -21,6 +21,13 @@ var (
 		Name:       "access_rules",
 		Columns:    AccessRulesColumns,
 		PrimaryKey: []*schema.Column{AccessRulesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "accessrule_type_value",
+				Unique:  true,
+				Columns: []*schema.Column{AccessRulesColumns[1], AccessRulesColumns[2]},
+			},
+		},
 	}
 	// WorkspacesColumns holds the columns for the "workspaces" table.
 	WorkspacesColumns = []*schema.Column{

@@ -77,7 +77,7 @@ go generate ./cmd/api
 - `GITHUB_CLIENT_ID` — GitHub OAuth App client ID, required
 - `GITHUB_CLIENT_SECRET` — GitHub OAuth App client secret, required
 - `GITHUB_REDIRECT_URL` — OAuth callback URL, required
-- `ADMIN_USERS` — comma-separated GitHub login(s) allowed to bootstrap the first admin, optional
+- `ADMIN_USERS` — comma-separated bootstrap access rule specs used when no `access_rules` exist, optional. Valid forms include `alice`, `user:alice`, `org:acme`, or `team:acme/developers`.
 
 If you want the Swagger UI authorize button to work, register the backend callback URL as the OAuth redirect URL:
 

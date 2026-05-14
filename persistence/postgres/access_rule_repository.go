@@ -38,8 +38,22 @@ func (r *AccessRuleRepository) List(ctx context.Context) ([]*auth.AccessRule, er
 }
 
 func (r *AccessRuleRepository) Upsert(ctx context.Context, subjectType, subjectID, role string) error {
-	const query = `INSERT INTO access_rules ("type", value, role) VALUES ($1, $2, $3) ON CONFLICT ("type", value) DO UPDATE SET role = EXCLUDED.role`
-	_, err := r.db.ExecContext(ctx, query, subjectType, subjectID, role)
+	const updateQuery = `UPDATE access_rules SET role = $3 WHERE "type" = $1 AND value = $2`
+	res, err := r.db.ExecContext(ctx, updateQuery, subjectType, subjectID, role)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected > 0 {
+		return nil
+	}
+
+	const insertQuery = `INSERT INTO access_rules (id, "type", value, role, created_at) VALUES (gen_random_uuid(), $1, $2, $3, now())`
+	_, err = r.db.ExecContext(ctx, insertQuery, subjectType, subjectID, role)
 	return err
 }
 

@@ -13,7 +13,7 @@ type Config struct {
 	GitHubClientID     string
 	GitHubClientSecret string
 	GitHubRedirectURL  string
-	InitialAdminUsers  []string
+	InitialAccessRules []string
 }
 
 func Load() (*Config, error) {
@@ -42,11 +42,11 @@ func Load() (*Config, error) {
 		return nil, errors.New("GITHUB_REDIRECT_URL is required")
 	}
 
-	initialAdmins := make([]string, 0)
-	for _, admin := range strings.Split(strings.TrimSpace(os.Getenv("ADMIN_USERS")), ",") {
-		admin = strings.ToLower(strings.TrimSpace(admin))
-		if admin != "" {
-			initialAdmins = append(initialAdmins, admin)
+	initialRules := make([]string, 0)
+	for _, rule := range strings.Split(strings.TrimSpace(os.Getenv("ADMIN_USERS")), ",") {
+		rule = strings.ToLower(strings.TrimSpace(rule))
+		if rule != "" {
+			initialRules = append(initialRules, rule)
 		}
 	}
 
@@ -56,7 +56,7 @@ func Load() (*Config, error) {
 		GitHubClientID:     githubClientID,
 		GitHubClientSecret: githubClientSecret,
 		GitHubRedirectURL:  githubRedirectURL,
-		InitialAdminUsers:  initialAdmins,
+		InitialAccessRules: initialRules,
 	}, nil
 }
 

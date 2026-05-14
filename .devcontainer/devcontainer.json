@@ -3,16 +3,31 @@
   "dockerComposeFile": ["docker-compose.yml"],
   "service": "app",
   "workspaceFolder": "/workspace",
+  "remoteUser": "vscode",
   "customizations": {
     "vscode": {
       "extensions": [
         "golang.go",
-        "ms-azuretools.vscode-docker"
-      ]
+        "ms-azuretools.vscode-docker",
+        "ms-ossdata.vscode-pgsql"
+      ],
+      "settings": {
+        "pgsql.connections": [
+          {
+            "profileName": "QuickSpaces Dev Postgres",
+            "server": "postgres",
+            "database": "quickspaces",
+            "user": "postgres",
+            "password": "postgres",
+            "port": "5432",
+            "sslmode": "disable"
+          }
+        ]
+      }
     }
   },
-  "postCreateCommand": "go mod tidy && go install github.com/swaggo/swag/cmd/swag@latest",
-  "postStartCommand": "make migrate-ent",
+  "postCreateCommand": "go mod tidy",
+  "postStartCommand": "bash .devcontainer/db-setup.sh",
   "runServices": ["postgres"],
   "shutdownAction": "stopCompose",
   "forwardPorts": [5432]

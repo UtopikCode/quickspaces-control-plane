@@ -19,5 +19,6 @@ CREATE TABLE IF NOT EXISTS access_rules (
     "type" TEXT NOT NULL,
     value TEXT NOT NULL,
     role TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    CONSTRAINT access_rules_type_value_unique UNIQUE ("type", value)
 );

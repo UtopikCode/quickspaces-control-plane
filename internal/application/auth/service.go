@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 
 	githubclient "github.com/UtopikCode/quickspaces-control-plane/internal/infrastructure/github"
@@ -21,19 +22,18 @@ type AccessRuleRepository interface {
 }
 
 type Service struct {
-	repo          AccessRuleRepository
-	initialAdmins map[string]struct{}
+	repo         AccessRuleRepository
+	initialRules []*AccessRule
 }
 
-func NewService(repo AccessRuleRepository, initialAdmins []string) *Service {
-	adminSet := make(map[string]struct{}, len(initialAdmins))
-	for _, admin := range initialAdmins {
-		admin = strings.ToLower(strings.TrimSpace(admin))
-		if admin != "" {
-			adminSet[admin] = struct{}{}
+func NewService(repo AccessRuleRepository, initialAccessRules []string) *Service {
+	rules := make([]*AccessRule, 0, len(initialAccessRules))
+	for _, spec := range initialAccessRules {
+		if rule, ok := parseAccessRuleSpec(spec); ok {
+			rules = append(rules, rule)
 		}
 	}
-	return &Service{repo: repo, initialAdmins: adminSet}
+	return &Service{repo: repo, initialRules: rules}
 }
 
 func (s *Service) Authorize(ctx context.Context, user githubclient.GithubUser, orgs []string, teams []githubclient.GithubTeam) (bool, string, error) {
@@ -55,14 +55,11 @@ func (s *Service) Authorize(ctx context.Context, user githubclient.GithubUser, o
 	if err != nil {
 		return false, "", err
 	}
-	if len(rules) == 0 {
-		if len(s.initialAdmins) == 0 {
-			return false, "", nil
+	if len(rules) == 0 && len(s.initialRules) > 0 {
+		if err := s.bootstrapInitialRules(ctx); err != nil {
+			return false, "", err
 		}
-		if _, ok := s.initialAdmins[normalizedUser]; ok {
-			return true, "admin", nil
-		}
-		return false, "", nil
+		rules = append([]*AccessRule(nil), s.initialRules...)
 	}
 
 	bestRole := ""
@@ -97,6 +94,42 @@ func (s *Service) Authorize(ctx context.Context, user githubclient.GithubUser, o
 		return false, "", nil
 	}
 	return true, bestRole, nil
+}
+
+func (s *Service) bootstrapInitialRules(ctx context.Context) error {
+	for _, rule := range s.initialRules {
+		if err := s.repo.Upsert(ctx, rule.SubjectType, rule.SubjectID, rule.Role); err != nil {
+			return err
+		}
+	}
+	log.Printf("[auth] bootstrapped %d initial access rule(s) from ADMIN_USERS", len(s.initialRules))
+	return nil
+}
+
+func parseAccessRuleSpec(spec string) (*AccessRule, bool) {
+	rule := strings.ToLower(strings.TrimSpace(spec))
+	if rule == "" {
+		return nil, false
+	}
+
+	subjectType := "user"
+	subjectID := rule
+	if strings.Contains(rule, ":") {
+		parts := strings.SplitN(rule, ":", 2)
+		subjectType = strings.TrimSpace(parts[0])
+		subjectID = strings.TrimSpace(parts[1])
+	}
+
+	if subjectID == "" {
+		return nil, false
+	}
+
+	switch subjectType {
+	case "user", "org", "team":
+		return &AccessRule{SubjectType: subjectType, SubjectID: subjectID, Role: "admin"}, true
+	default:
+		return nil, false
+	}
 }
 
 func (s *Service) GrantAccess(ctx context.Context, subjectType, subjectID, role string) error {
